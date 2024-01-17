@@ -4,7 +4,8 @@ use lorenz_attractor::*;
 use nannou::prelude::*;
 use std::process::exit;
 
-const WINDOW_H: u32 = 500;
+//const WINDOW_H: u32 = 2160;
+const WINDOW_H: u32 = 800;
 const WINDOW_W: u32 = WINDOW_H * 2;
 const DELTA_THETA: f32 = 0.0003;
 const SCALE: f32 = WINDOW_H as f32 / PI;
@@ -40,7 +41,7 @@ fn update(app: &App, model: &mut Model, _update: Update) {
         model.minutes = minutes;
         print!("{}, ", minutes);
     }
-    if minutes > 15 {
+    if minutes > 1 {
         exit(0);
     }
 

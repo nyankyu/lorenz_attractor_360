@@ -1,4 +1,3 @@
-use nalgebra::{Rotation3, Vector3};
 use nannou::prelude::*;
 
 const SIGMA: f32 = 10.0;
@@ -8,7 +7,7 @@ const RHO: f32 = 28.0;
 const ORBIT_NUM: usize = 1000;
 const ORBIT_LEN: usize = 600;
 const DELTA_T: f32 = 0.001;
-const ORBIT_WEIGHT: f32 = 3.0 / crate::SCALE;
+const ORBIT_WEIGHT: f32 = 1.0 / crate::SCALE;
 const CAMERA_Z: f32 = 10.0;
 
 pub(crate) struct LorenzAttractor {
@@ -17,15 +16,21 @@ pub(crate) struct LorenzAttractor {
 
 impl LorenzAttractor {
     pub(crate) fn new() -> Self {
-        LorenzAttractor { attractor: (0..ORBIT_NUM).map(|_| Particle::new()).collect() }
+        LorenzAttractor {
+            attractor: (0..ORBIT_NUM).map(|_| Particle::new()).collect(),
+        }
     }
 
     pub(crate) fn update(&mut self) {
-        self.attractor.iter_mut().for_each(|particle| particle.update());
+        self.attractor
+            .iter_mut()
+            .for_each(|particle| particle.update());
     }
 
     pub(crate) fn draw(&self, draw: &Draw, theta: f32) {
-        self.attractor.iter().for_each(|particle| particle.draw(draw, theta));
+        self.attractor
+            .iter()
+            .for_each(|particle| particle.draw(draw, theta));
     }
 }
 
@@ -56,13 +61,20 @@ impl Particle {
     }
 
     fn draw(&self, draw: &Draw, theta: f32) {
-        let rotation = Rotation3::from_euler_angles(theta, theta * 7.9, theta * 1.3);
+        let rotation =
+            Mat3::from_euler(nannou::glam::EulerRot::ZYX, theta, theta * 7.9, theta * 1.3);
+        let translation = vec3(0.0, 0.0, -20.0);
+
+        let rotated: Vec<Vec3> = self
+            .orbit
+            .iter()
+            .map(|&p| rotation * (p + translation))
+            .collect();
+
         draw.polyline()
             .weight(ORBIT_WEIGHT)
             .join_round()
-            .points_colored(self.orbit.iter().enumerate().map(|(i, p)| {
-                let p = Vector3::new(p.x, p.y, p.z - 20.0);
-                let p = rotation.transform_vector(&p);
+            .points_colored(rotated.iter().enumerate().map(|(i, &p)| {
                 let longi_lati = equirectangular(p);
                 let color = if -3.1 < longi_lati.x && longi_lati.x < 3.1 {
                     let alpha = 500.0 * i as f32 / ORBIT_LEN as f32 / (CAMERA_Z - p.z).abs();
@@ -75,7 +87,7 @@ impl Particle {
     }
 }
 
-fn equirectangular(p: Vector3<f32>) -> Vec2 {
+fn equirectangular(p: Vec3) -> Vec2 {
     let dist_xy = (p.x * p.x + p.y * p.y).sqrt();
     let longitude = (p.x / dist_xy).acos() * p.y.signum();
     let latitude = ((p.z - CAMERA_Z) / dist_xy).atan();
