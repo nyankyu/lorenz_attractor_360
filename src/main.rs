@@ -4,8 +4,8 @@ use lorenz_attractor::*;
 use nannou::prelude::*;
 use std::process::exit;
 
-//const WINDOW_H: u32 = 2160;
-const WINDOW_H: u32 = 800;
+const WINDOW_H: u32 = 2160;
+//const WINDOW_H: u32 = 800;
 const WINDOW_W: u32 = WINDOW_H * 2;
 const DELTA_THETA: f32 = 0.0003;
 const SCALE: f32 = WINDOW_H as f32 / PI;
@@ -23,7 +23,7 @@ struct Model {
 fn model(app: &App) -> Model {
     app.new_window()
         .size(WINDOW_W, WINDOW_H)
-        //.visible(false)
+        .visible(false)
         .view(view)
         .build()
         .unwrap();
@@ -41,7 +41,7 @@ fn update(app: &App, model: &mut Model, _update: Update) {
         model.minutes = minutes;
         print!("{}, ", minutes);
     }
-    if minutes > 1 {
+    if minutes > 2 {
         exit(0);
     }
 
@@ -60,7 +60,7 @@ fn view(app: &App, model: &Model, frame: Frame) {
 
     draw.to_frame(app, &frame).unwrap();
 
-    //save_frame(app);
+    save_frame(app);
 }
 
 #[allow(dead_code)]

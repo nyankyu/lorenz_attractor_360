@@ -65,29 +65,45 @@ impl Particle {
             Mat3::from_euler(nannou::glam::EulerRot::ZYX, theta, theta * 7.9, theta * 1.3);
         let translation = vec3(0.0, 0.0, -20.0);
 
-        let rotated: Vec<Vec3> = self
+        let mut orbit2d_iter = self
             .orbit
             .iter()
             .map(|&p| rotation * (p + translation))
-            .collect();
+            .map(|p| equirectangular(&p));
 
-        draw.polyline()
-            .weight(ORBIT_WEIGHT)
-            .join_round()
-            .points_colored(rotated.iter().enumerate().map(|(i, &p)| {
-                let longi_lati = equirectangular(p);
-                let color = if -3.1 < longi_lati.x && longi_lati.x < 3.1 {
-                    let alpha = 500.0 * i as f32 / ORBIT_LEN as f32 / (CAMERA_Z - p.z).abs();
-                    rgba8(255, 0, 0, alpha as u8)
-                } else {
-                    rgba8(0, 0, 0, 0)
-                };
-                (longi_lati, color)
-            }));
+        let mut pre = orbit2d_iter.next().unwrap();
+        for (i, p) in orbit2d_iter.enumerate() {
+            let color = rgba8(255, 0, 0, (80.0 * i as f32 / ORBIT_LEN as f32) as u8);
+            let d = (pre.x - p.x).abs();
+            if d > PI {
+                let center_y = (pre.y + p.y) / 2.0;
+                draw.line()
+                    .weight(ORBIT_WEIGHT)
+                    .join_round()
+                    .start(vec2(PI * pre.x.signum(), center_y))
+                    .end(pre)
+                    .color(color);
+                draw.line()
+                    .weight(ORBIT_WEIGHT)
+                    .join_round()
+                    .start(vec2(PI * p.x.signum(), center_y))
+                    .end(p)
+                    .color(color);
+            } else {
+                draw.line()
+                    .weight(ORBIT_WEIGHT)
+                    .join_round()
+                    .start(pre)
+                    .end(p)
+                    .color(color);
+            }
+
+            pre = p;
+        }
     }
 }
 
-fn equirectangular(p: Vec3) -> Vec2 {
+fn equirectangular(p: &Vec3) -> Vec2 {
     let dist_xy = (p.x * p.x + p.y * p.y).sqrt();
     let longitude = (p.x / dist_xy).acos() * p.y.signum();
     let latitude = ((p.z - CAMERA_Z) / dist_xy).atan();
