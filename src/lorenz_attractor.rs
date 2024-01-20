@@ -7,17 +7,23 @@ const RHO: f32 = 28.0;
 const ORBIT_NUM: usize = 1000;
 const ORBIT_LEN: usize = 600;
 const DELTA_T: f32 = 0.001;
-const ORBIT_WEIGHT: f32 = 1.0 / crate::SCALE;
+const ORBIT_WEIGHT: f32 = 10.0 / crate::SCALE;
+const ORBIT_WEIGHT2: f32 = ORBIT_WEIGHT * 0.5;
 const CAMERA_Z: f32 = 10.0;
+const CENTER_Z: f32 = 20.0;
 
 pub(crate) struct LorenzAttractor {
     attractor: Vec<Particle>,
+    camera: Vec3,
+    center: Vec3,
 }
 
 impl LorenzAttractor {
     pub(crate) fn new() -> Self {
         LorenzAttractor {
             attractor: (0..ORBIT_NUM).map(|_| Particle::new()).collect(),
+            camera: vec3(0.0, 0.0, CAMERA_Z),
+            center: vec3(0.0, 0.0, CENTER_Z),
         }
     }
 
@@ -30,7 +36,7 @@ impl LorenzAttractor {
     pub(crate) fn draw(&self, draw: &Draw, theta: f32) {
         self.attractor
             .iter()
-            .for_each(|particle| particle.draw(draw, theta));
+            .for_each(|particle| particle.draw(draw, self.camera, self.center, theta));
     }
 }
 
@@ -60,45 +66,47 @@ impl Particle {
         }
     }
 
-    fn draw(&self, draw: &Draw, theta: f32) {
+    fn draw(&self, draw: &Draw, camera: Vec3, center: Vec3, theta: f32) {
         let rotation =
             Mat3::from_euler(nannou::glam::EulerRot::ZYX, theta, theta * 7.9, theta * 1.3);
-        let translation = vec3(0.0, 0.0, -20.0);
 
-        let mut orbit2d_iter = self
-            .orbit
-            .iter()
-            .map(|&p| rotation * (p + translation))
-            .map(|p| equirectangular(&p));
+        let mut coordinate_depth = self.orbit.iter().map(|&p| {
+            let rotated = rotation * (p - center);
+            let coordinate = equirectangular(&rotated);
+            let depth = camera.distance(rotated);
+            (coordinate, depth)
+        });
 
-        let mut pre = orbit2d_iter.next().unwrap();
-        for (i, p) in orbit2d_iter.enumerate() {
-            let color = rgba8(255, 0, 0, (80.0 * i as f32 / ORBIT_LEN as f32) as u8);
-            let d = (pre.x - p.x).abs();
-            if d > PI {
-                let center_y = (pre.y + p.y) / 2.0;
+        let mut pre = coordinate_depth.next().unwrap().0;
+        for (_i, (coordinate, depth)) in coordinate_depth.enumerate() {
+            let color = rgb8(180, 0, 0);
+            let weight = 2.0 * (ORBIT_WEIGHT2 / depth).atan();
+
+            let len_x = (pre.x - coordinate.x).abs();
+            if len_x > PI {
+                let center_y = (pre.y + coordinate.y) / 2.0;
                 draw.line()
-                    .weight(ORBIT_WEIGHT)
+                    .weight(weight)
                     .join_round()
                     .start(vec2(PI * pre.x.signum(), center_y))
                     .end(pre)
                     .color(color);
                 draw.line()
-                    .weight(ORBIT_WEIGHT)
+                    .weight(weight)
                     .join_round()
-                    .start(vec2(PI * p.x.signum(), center_y))
-                    .end(p)
+                    .start(vec2(PI * coordinate.x.signum(), center_y))
+                    .end(coordinate)
                     .color(color);
             } else {
                 draw.line()
-                    .weight(ORBIT_WEIGHT)
+                    .weight(weight)
                     .join_round()
                     .start(pre)
-                    .end(p)
+                    .end(coordinate)
                     .color(color);
             }
 
-            pre = p;
+            pre = coordinate;
         }
     }
 }
