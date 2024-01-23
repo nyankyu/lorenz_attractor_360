@@ -7,15 +7,12 @@ use std::process::exit;
 const WINDOW_H: u32 = 2160;
 //const WINDOW_H: u32 = 800;
 const WINDOW_W: u32 = WINDOW_H * 2;
-const DELTA_THETA: f32 = 0.0003;
-const SCALE: f32 = WINDOW_H as f32 / PI;
 
 fn main() {
     nannou::app(model).update(update).event(event).run();
 }
 
 struct Model {
-    theta: f32,
     lorenz_attractor: LorenzAttractor,
     minutes: u64,
 }
@@ -29,7 +26,6 @@ fn model(app: &App) -> Model {
         .unwrap();
 
     Model {
-        theta: 0.0,
         lorenz_attractor: LorenzAttractor::new(),
         minutes: 0,
     }
@@ -41,22 +37,29 @@ fn update(app: &App, model: &mut Model, _update: Update) {
         model.minutes = minutes;
         print!("{}, ", minutes);
     }
-    if minutes > 2 {
+    if minutes >= 5 {
         exit(0);
     }
 
-    model.theta += DELTA_THETA;
     model.lorenz_attractor.update();
 }
 
 fn event(_app: &App, _model: &mut Model, _event: Event) {}
 
 fn view(app: &App, model: &Model, frame: Frame) {
-    let draw = app.draw().scale(SCALE);
+    let draw = app.draw();
 
     draw.background().color(BLACK);
 
-    model.lorenz_attractor.draw(&draw, model.theta);
+    model.lorenz_attractor.draw(&draw);
+
+    if app.elapsed_frames() < 60 * 5 {
+        draw.text("←←← Drag or Swipe →→→")
+            .width(WINDOW_W as f32)
+            .center_justify()
+            .font_size(50)
+            .color(WHITE);
+    }
 
     draw.to_frame(app, &frame).unwrap();
 

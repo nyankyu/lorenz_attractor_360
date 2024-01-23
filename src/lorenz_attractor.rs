@@ -4,16 +4,20 @@ const SIGMA: f32 = 10.0;
 const BETA: f32 = 8.0 / 3.0;
 const RHO: f32 = 28.0;
 
-const ORBIT_NUM: usize = 1000;
+const SCALE: f32 = crate::WINDOW_H as f32 / PI;
+const ORBIT_NUM: usize = 800;
 const ORBIT_LEN: usize = 600;
 const DELTA_T: f32 = 0.001;
-const ORBIT_WEIGHT: f32 = 10.0 / crate::SCALE;
+const ORBIT_WEIGHT: f32 = 15.0 / SCALE;
 const ORBIT_WEIGHT2: f32 = ORBIT_WEIGHT * 0.5;
 const CAMERA_Z: f32 = 10.0;
 const CENTER_Z: f32 = 20.0;
+const DELTA_THETA: f32 = 0.0003;
 
 pub(crate) struct LorenzAttractor {
     attractor: Vec<Particle>,
+    theta: f32,
+    rotation: Mat3,
     camera: Vec3,
     center: Vec3,
 }
@@ -22,6 +26,8 @@ impl LorenzAttractor {
     pub(crate) fn new() -> Self {
         LorenzAttractor {
             attractor: (0..ORBIT_NUM).map(|_| Particle::new()).collect(),
+            theta: 0.0,
+            rotation: Mat3::IDENTITY,
             camera: vec3(0.0, 0.0, CAMERA_Z),
             center: vec3(0.0, 0.0, CENTER_Z),
         }
@@ -31,12 +37,20 @@ impl LorenzAttractor {
         self.attractor
             .iter_mut()
             .for_each(|particle| particle.update());
+        self.theta += DELTA_THETA;
+        self.rotation = Mat3::from_euler(
+            nannou::glam::EulerRot::ZYX,
+            self.theta,
+            self.theta * 7.9,
+            self.theta * 1.3,
+        );
     }
 
-    pub(crate) fn draw(&self, draw: &Draw, theta: f32) {
+    pub(crate) fn draw(&self, draw: &Draw) {
+        let draw = draw.scale(SCALE);
         self.attractor
             .iter()
-            .for_each(|particle| particle.draw(draw, self.camera, self.center, theta));
+            .for_each(|particle| particle.draw(&draw, self.rotation, self.camera, self.center));
     }
 }
 
@@ -66,10 +80,7 @@ impl Particle {
         }
     }
 
-    fn draw(&self, draw: &Draw, camera: Vec3, center: Vec3, theta: f32) {
-        let rotation =
-            Mat3::from_euler(nannou::glam::EulerRot::ZYX, theta, theta * 7.9, theta * 1.3);
-
+    fn draw(&self, draw: &Draw, rotation: Mat3, camera: Vec3, center: Vec3) {
         let mut coordinate_depth = self.orbit.iter().map(|&p| {
             let rotated = rotation * (p - center);
             let coordinate = equirectangular(&rotated);
@@ -78,8 +89,16 @@ impl Particle {
         });
 
         let mut pre = coordinate_depth.next().unwrap().0;
-        for (_i, (coordinate, depth)) in coordinate_depth.enumerate() {
-            let color = rgb8(180, 0, 0);
+        for (coordinate, depth) in coordinate_depth {
+            if pre.distance(coordinate) < PI / crate::WINDOW_H as f32 {
+                continue;
+            }
+
+            let color = if depth < 0.5 {
+                rgba8(0, 0, 0, 0)
+            } else {
+                rgba8(180, 0, 0, 255)
+            };
             let weight = 2.0 * (ORBIT_WEIGHT2 / depth).atan();
 
             let len_x = (pre.x - coordinate.x).abs();
