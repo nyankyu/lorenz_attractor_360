@@ -4,8 +4,9 @@ use lorenz_attractor::*;
 use nannou::prelude::*;
 use std::process::exit;
 
-const WINDOW_H: u32 = 2160;
-//const WINDOW_H: u32 = 800;
+const RECORDING: bool = false;
+
+const WINDOW_H: u32 = if RECORDING { 2160 } else { 800 };
 const WINDOW_W: u32 = WINDOW_H * 2;
 
 fn main() {
@@ -20,7 +21,7 @@ struct Model {
 fn model(app: &App) -> Model {
     app.new_window()
         .size(WINDOW_W, WINDOW_H)
-        .visible(false)
+        .visible(!RECORDING)
         .view(view)
         .build()
         .unwrap();
@@ -63,7 +64,9 @@ fn view(app: &App, model: &Model, frame: Frame) {
 
     draw.to_frame(app, &frame).unwrap();
 
-    save_frame(app);
+    if RECORDING {
+        save_frame(app);
+    }
 }
 
 #[allow(dead_code)]
